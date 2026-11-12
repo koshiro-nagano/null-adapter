@@ -1,0 +1,6 @@
+# Phase 2 image: Phase 1 GPU image + pretrained vision models (DINOv3, SAM 3) via transformers.
+FROM null-adapter:toy1-gpu
+# torchvision 0.19.1 matches torch 2.4.1 (cu121); SAM 3 in transformers imports torchvision
+RUN pip install torchvision==0.19.1 transformers==5.0.0 huggingface_hub==1.33.0 \
+      pillow==11.0.0 safetensors accelerate==1.2.1 h5py==3.12.1 tifffile==2024.9.20
+ENV HF_HOME=/work/.hf_cache

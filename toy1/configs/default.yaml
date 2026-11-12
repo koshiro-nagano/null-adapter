@@ -1,0 +1,74 @@
+# Toy 1: synthetic-spectrum range / conditional-residual decomposition.
+# All hyperparameters are fixed a priori. Do NOT tune on the test set.
+# Any change must be recorded in REPORT.md ("Deviations / changes") with a reason.
+
+data_seed: 0              # operator basis, task directions, and all data pools
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]   # encoder training + labeled-subset sampling
+
+wavelengths: {start: 400, end: 700, step: 10}   # 31 bands
+
+operator:
+  cmfs: "CIE 1931 2 Degree Standard Observer"
+  illuminant: "D65"
+  row_normalize: true     # each row of A is scaled to sum to 1 (c is on the scale of x)
+
+spectra:
+  prior: gaussian          # gaussian | mog (see configs/mog.yaml)
+  n_basis: 10             # Gaussian basis functions (8-12 per spec)
+  width_range: [30, 60]   # nm, FWHM-like sigma drawn uniformly per basis
+  center_jitter: 10       # nm, uniform jitter around evenly spaced centers
+  mu_level: 0.5           # mean spectrum = mu_level + mu_slope * (lambda - 550)/150
+  mu_slope: 0.1
+  lambda_range: [0.01, 0.05]   # diag(Lambda) drawn uniformly (variance of w)
+  tau: 0.005              # isotropic floor, makes Sigma full rank
+  clip: false             # no clipping (keeps Gaussianity; recorded as a limitation)
+
+noise_sigma: 0.001        # observation noise std on c
+
+sizes:
+  n_unlabeled: 100000
+  n_labeled_pool: 20000   # labeled candidates (disjoint from unlabeled pool)
+  n_test: 10000
+  n_metameric_pairs: 5000 # pairs -> 10000 samples
+
+K: [2, 5, 10, 20, 50, 100, 500]   # per class
+
+head:                     # identical for every linear-probe method
+  C: 1.0
+  max_iter: 5000
+
+encoders:
+  phi:                    # "RGB foundation model" stand-in: denoising AE on c only
+    latent: 32
+    input_noise: 0.05     # in standardized units
+    scales:
+      S: {width: 32, depth: 2}
+      M: {width: 128, depth: 3}
+      L: {width: 512, depth: 4}
+    main_scale: M
+  g:                      # target encoder: AE on x
+    latent: 16
+    width: 256
+    depth: 3
+  predictor: {width: 256, depth: 3}     # p: phi(c) -> g(x)
+  m5_mlp: {width: 256, depth: 3}        # c -> x
+  rnd_h: {width: 256, depth: 3}         # RND-SCI-style null-space generator c -> q
+  train: {epochs: 30, batch: 1024, lr: 1.0e-3, weight_decay: 0.0}
+  m6b:
+    epochs: 30
+    ema_momentum: 0.99
+    vic_weight: 1.0       # weight of variance hinge relu(1 - std_d)
+    vic_target_std: 1.0
+    log_every: 20         # optimizer steps between dynamics logs
+
+baselines:
+  hsia:                   # HSI-Adapter-lite (end-to-end on labeled data)
+    steps: 300
+    lr: 1.0e-3
+    weight_decay: 1.0e-4
+    adapter_width: 64
+
+run:
+  n_workers: 10           # parallel seeds (CPU processes)
+  torch_threads: 1
+  device: cuda            # "cuda" -> worker for seed s uses cuda:(s % n_gpu); falls back to cpu

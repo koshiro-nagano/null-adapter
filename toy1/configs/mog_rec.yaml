@@ -1,0 +1,7 @@
+# Reconstruction-anchored joint training of the JEPA target (M6b_rec*), on top of mog.yaml.
+# lambda values fixed before running; rec1 is the pre-registered main variant, rec01/rec10 are sensitivity.
+base: mog.yaml
+encoders:
+  m6b:
+    variants: [direct, ema, vic, rec01, rec1, rec10]
+    recon_weights: {rec01: 0.1, rec1: 1.0, rec10: 10.0}

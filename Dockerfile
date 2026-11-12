@@ -1,0 +1,6 @@
+FROM python:3.11-slim
+ENV PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 MPLBACKEND=Agg
+RUN pip install --index-url https://download.pytorch.org/whl/cpu torch==2.4.1 \
+ && pip install numpy==1.26.4 scipy==1.13.1 scikit-learn==1.5.2 pandas==2.2.3 \
+      matplotlib==3.9.2 colour-science==0.4.4 pyyaml==6.0.2 pytest==8.3.3
+WORKDIR /work

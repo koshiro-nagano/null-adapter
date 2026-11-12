@@ -1,0 +1,36 @@
+# secrets and caches
+.env
+.hf_cache/
+__pycache__/
+.pytest_cache/
+*.pyc
+# datasets, features, results (not published; LIB-HSI is CC BY-NC 4.0, SFU data is third-party)
+phase2/data/
+toy1/data/
+**/cache/
+**/results/
+report_assets/
+*.npz
+*.npy
+*.dat
+# generated report pages (embed dataset-derived images)
+*.html
+# documents, analysis and report/figure generators (not needed to run the experiments)
+*.md
+!README.md
+explore_classes/
+scripts_summary/
+**/make_report.py
+phase2/scripts/make_figures.py
+phase2/scripts/to_tensorboard.py
+phase2/scripts/class_stats.py
+phase3/scripts/monitor.py
+phase3/scripts/analyze.py
+phase4/scripts/analyze.py
+toy1/src/plots.py
+toy1/src/report_html.py
+toy1/src/report_template.html
+toy1/src/real_analysis.py
+toy1/scripts/figure_dump.py
+toy1/scripts/example_dump.py
+toy1/scripts/add_diagnostics.py

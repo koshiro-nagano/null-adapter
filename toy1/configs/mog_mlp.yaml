@@ -1,0 +1,8 @@
+# Head-capacity control on the non-linear prior: mog.yaml + the MLP head of default_mlp.yaml.
+base: mog.yaml
+head:
+  type: mlp
+  mlp:
+    hidden: [64, 64]
+    alpha: 1.0e-3
+    max_iter: 1000

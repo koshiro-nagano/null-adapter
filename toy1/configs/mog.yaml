@@ -1,0 +1,16 @@
+# Non-linear prior: mixture of Gaussians. E[x|c] is non-linear in c (closed form via
+# component responsibilities). Everything not listed here is inherited from default.yaml.
+# The mixture parameters were fixed using only label-free / large-data diagnostics
+# (scripts/prior_design.py -> results/prior_design.log), before running any compared method.
+# Selection rule: among 18 candidates, the largest gap on T_resid between a 20k-sample linear
+# head on raw x (0.830) and on oracle features [c, x - E[x|c]] (0.962).
+base: default.yaml
+
+spectra:
+  prior: mog
+  mixture:
+    n_components: 6
+    range_offset: 3.0        # norm of component-mean offset inside range(A^T)  (visible to c)
+    null_offset: 3.0         # norm of component-mean offset inside null(A)     (invisible to c)
+    lambda_scale_range: [0.2, 5.0]   # per-component multiplier of Lambda
+    n_calib: 200000          # MC sample (data seed) for directions and thresholds

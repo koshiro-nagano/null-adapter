@@ -1,0 +1,7 @@
+# Same as real_nikon.yaml with the Sony DXC-930 sensors (SFU calibration data).
+base: real_nikon.yaml
+operator:
+  source: sfu_file
+  path: data/raw/sfu/sensors.spect
+  illuminant: "D65"
+  row_normalize: true
