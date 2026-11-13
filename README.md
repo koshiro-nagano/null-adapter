@@ -27,6 +27,7 @@ toy1/                                       # Phase 1: synthetic spectra with cl
 phase2/                                     # LIB-HSI, frozen DINOv3, per-pixel linear head (src/run.py)
 phase3/                                     # same inputs, shared spatial head with zero-init gate (src/run.py)
 phase4/                                     # whole-image labels, Phase 2 + 3 methods (src/run_linear.py, run_spatial.py)
+polar/                                      # polarisation: SimCMF vs Null-Adapter on ZJU-RGBP / RGBP-Glass (SAM-B + LoRA)
 ```
 
 Data are not in the repository: LIB-HSI (CC BY-NC 4.0, `phase2/scripts/fetch_libhsi.py` -> `phase2/data/full/LIB-HSI`)
@@ -53,3 +54,29 @@ Proxy variables are forwarded to the build and to the container.
 | `B_RND`, `B_RNDres` | RND-SCI (hustvl/RND-SCI, `model/RND.py`) | `x̂ = A⁺c + P_N h(c)`: the network only fills the null space, so `A x̂ = c` |
 | `B_HSIA` | HSI-Adapter (robot-learning-freiburg/HSI-Adapter) | per-pixel spectral module → frozen RGB backbone, plus an HSI adapter injected through a zero-initialized gate, trained end to end on labels |
 | `M1`, `M2` | HSI-Adapter / SimMAT family | learn from all channels (`x`) with or without frozen RGB features |
+
+## Polarisation (polar/): comparison with SimCMF
+
+SAM-B + LoRA from the SimCMF code (github.com/mt-cly/SimCMF @ 0cdc5c1; no license file, so it is not vendored:
+clone it to `../ext/SimCMF` or set `SIMCMF_ROOT`, and put `sam_vit_b_01ec64.pth` in its `checkpoint/sam/`).
+Only `image_encoder.projector` changes between methods; the recipe and the click/instance-IoU evaluation are SimCMF's.
+
+| method | input to SAM's patch embedding |
+|---|---|
+| `simcmf` | SimCMF projector on [I, AoLP, DoLP] (9 ch, SimCMF normalisation) |
+| `rgb` | pretrained embedding of the intensity image c only |
+| `fuse_p` | `E(c) + sum_i w_i E_i(p_i)`, p = normalised Stokes s1/S0, s2/S0 per colour (6 ch), w zero-initialised |
+| `null_p` | same module with r = p − m(c); m ≈ E[p | c] a CNN fitted label-free on all train RGB–P pairs |
+
+Data: the archives linked in the SimCMF README (`zju-rgbp`, `pgsnet`) unpacked under `polar/data/raw/`, then
+`python -m polar.scripts.prepare zju polar/data/raw/zju/zju-rgbp` (and `pgsnet …/pgsnet/pgsnet`).
+Environment (RTX 5080 / sm_120 needs torch ≥ 2.7): `uv venv .venv && uv pip install torch==2.7.1 torchvision==0.22.1
+--index-url https://download.pytorch.org/whl/cu128 && uv pip install "numpy<2" monai==1.3.1 einops opencv-python-headless
+pillow tensorboardX tqdm pandas scipy pyyaml pytest`. Global attention runs through SDPA (exact reformulation of the
+decomposed relative-position bias, `polar/src/bridge.py`, checked in `polar/tests/test_bridge.py`), so batch 4 fits 16 GB.
+
+```bash
+.venv/bin/python -m pytest -q polar/tests
+polar/scripts/queue.sh          # all runs, priority order, restartable -> polar/results/<ds>/<method>_n<labels>_s<seed>/
+.venv/bin/python -m polar.scripts.summarize
+```

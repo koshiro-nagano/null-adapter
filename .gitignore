@@ -34,3 +34,7 @@ toy1/src/real_analysis.py
 toy1/scripts/figure_dump.py
 toy1/scripts/example_dump.py
 toy1/scripts/add_diagnostics.py
+
+# local Python env (polar/: uv venv, torch cu128 for sm_120)
+.venv/
+polar/data/
