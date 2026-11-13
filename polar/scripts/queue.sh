@@ -3,7 +3,7 @@
 # order on one GPU; finished runs (result.json) are skipped, so the script can be restarted.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
-PY=${PY:-.venv/bin/python}
+PY=${PY:-$([ -x .venv/bin/python ] && echo .venv/bin/python || echo python)}  # python inside the polar image
 METHODS="simcmf rgb fuse_p null_p"
 run() {  # ds n_label seed iters out
   for m in $METHODS; do

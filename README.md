@@ -75,8 +75,13 @@ Environment (RTX 5080 / sm_120 needs torch ≥ 2.7): `uv venv .venv && uv pip in
 pillow tensorboardX tqdm pandas scipy pyyaml pytest`. Global attention runs through SDPA (exact reformulation of the
 decomposed relative-position bias, `polar/src/bridge.py`, checked in `polar/tests/test_bridge.py`), so batch 4 fits 16 GB.
 
+Docker (same versions; needs Docker Engine + NVIDIA Container Toolkit and a host driver ≥ 570):
+
 ```bash
-.venv/bin/python -m pytest -q polar/tests
-polar/scripts/queue.sh          # all runs, priority order, restartable -> polar/results/<ds>/<method>_n<labels>_s<seed>/
-.venv/bin/python -m polar.scripts.summarize
+./build_docker.sh polar                        # null-adapter:polar; host CA bundle passed as a build secret for the proxy
+VARIANT=polar ./run_docker.sh python -m pytest -q polar/tests
+VARIANT=polar ./run_docker.sh polar/scripts/queue.sh   # all runs, priority order, restartable
+VARIANT=polar ./run_docker.sh python -m polar.scripts.summarize
 ```
+
+Without Docker, the same commands run with `.venv/bin/python` (results go to `polar/results/<ds>/<method>_n<labels>_s<seed>/`).

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Usage: ./run_docker.sh <command...>   (runs inside null-adapter/ as /work, as host user)
 # VARIANT=cpu to use the CPU image, VARIANT=phase2 for the DINOv3/SAM 3 image (passes only HF_TOKEN from .env); GPUS=all|none|"device=0" (default all with the gpu image)
+# VARIANT=polar for polar/ (SimCMF clone mounted read-only at /simcmf from SIMCMF_ROOT, default ../ext/SimCMF)
 set -e
 cd "$(dirname "$0")"
 variant="${VARIANT:-gpu}"
@@ -15,6 +16,11 @@ if [ "$variant" = phase2 ]; then
   hf_flags=(-e HF_TOKEN -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/host-ca.crt:ro
             -e SSL_CERT_FILE=/etc/ssl/certs/host-ca.crt -e REQUESTS_CA_BUNDLE=/etc/ssl/certs/host-ca.crt
             -e CURL_CA_BUNDLE=/etc/ssl/certs/host-ca.crt)
+fi
+if [ "$variant" = polar ]; then
+  image=null-adapter:polar
+  simcmf="$(cd "${SIMCMF_ROOT:-../ext/SimCMF}" && pwd)"
+  hf_flags=(-v "$simcmf":/simcmf:ro -e SIMCMF_ROOT=/simcmf -e PY=python)
 fi
 if [ "$variant" != cpu ] && [ "${GPUS:-all}" != none ]; then gpu_flags=(--gpus "${GPUS:-all}"); fi
 docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
