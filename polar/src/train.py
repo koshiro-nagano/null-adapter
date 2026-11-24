@@ -30,13 +30,26 @@ from .inputs import METHODS, N_EXTRA, Inputs
 from .projectors import GroupResidualProjector
 
 EVAL_SPLIT = {"zju": "val", "pgsnet": "test"}
+MDROP = 0.3
+# projector variants on top of an input method: name -> (input method, projector options)
+VARIANTS = {"null_orth2": ("null_orth", dict(orth=True)),                       # pixel- + token-level orthogonalisation
+            "null_orth_g": ("null_orth", dict(gate=True, mdrop=MDROP)),         # + RGB-token gate, modality dropout
+            "null_orth2_g": ("null_orth", dict(orth=True, gate=True, mdrop=MDROP))}
+
+
+def spec(method: str):
+    """-> (input method for Inputs / N_EXTRA, projector options)."""
+    if method in VARIANTS:
+        return VARIANTS[method]
+    return method, dict(orth=method == "null_orthf")
 
 
 def build(method: str, ds: str):
     bridge.use_sdpa_attention()
     net, _ = bridge.build_sam_lora("simcmf" if method == "simcmf" else "zeroshot", "zju-rgbp" if ds == "zju" else "pgsnet_rgbp")
     if method != "simcmf":
-        net.image_encoder.projector = GroupResidualProjector(N_EXTRA[method], net.image_encoder.patch_embed.proj)
+        base, opts = spec(method)
+        net.image_encoder.projector = GroupResidualProjector(N_EXTRA[base], net.image_encoder.patch_embed.proj, **opts)
     names = bridge.set_trainable_params(net, net_name="sam_lora")
     return net, names
 
@@ -48,8 +61,9 @@ def evaluate(net, inputs, loader, dev):
     for raw, pts, tg, ids, cnt, i in loader:
         if pts.shape[1] == 0:
             continue
+        x = inputs(raw.to(dev, non_blocking=True))  # outside autocast, as in training (m(c) of null_p in fp32)
         with torch.autocast("cuda", dtype=torch.bfloat16):
-            emb = net.image_encoder(inputs(raw.to(dev, non_blocking=True)))
+            emb = net.image_encoder(x)
         n = pts.shape[1]
         coords = pts[0].to(dev).unsqueeze(1)                            # (n, 1, 2)
         labels = torch.ones(n, 1, dtype=torch.int, device=dev)
@@ -71,7 +85,7 @@ def evaluate(net, inputs, loader, dev):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ds", choices=("zju", "pgsnet"), required=True)
-    ap.add_argument("--method", choices=METHODS, required=True)
+    ap.add_argument("--method", choices=METHODS + tuple(VARIANTS), required=True)
     ap.add_argument("--n_label", default="all")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--iters", type=int, default=None, help="default: 51 epochs of the full train set at batch 4")
@@ -100,7 +114,7 @@ def main():
     log(f"{vars(a)} | labelled images {len(lab)} / {len(pool)} | iters {iters} | lr x0.5 every {step_every} | eval at {evals}")
 
     torch.manual_seed(a.seed); np.random.seed(a.seed)
-    inputs = Inputs(a.ds, a.method, a.seed, dev, log)
+    inputs = Inputs(a.ds, spec(a.method)[0], a.seed, dev, log)
     torch.manual_seed(a.seed)
     net, names = build(a.method, a.ds)
     net = net.to(dev).train()
